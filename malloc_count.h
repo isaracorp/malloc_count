@@ -41,6 +41,9 @@ extern size_t malloc_count_current(void);
 /* returns the current peak memory allocation */
 extern size_t malloc_count_peak(void);
 
+/* returns the total memory allocation */
+extern size_t malloc_count_total(void);
+
 /* resets the peak memory allocation to current */
 extern void malloc_count_reset_peak(void);
 
