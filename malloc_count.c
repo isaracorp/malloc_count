@@ -16,7 +16,7 @@
  *
  * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -26,7 +26,10 @@
  * IN THE SOFTWARE.
  *****************************************************************************/
 
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
+
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -72,7 +75,7 @@ static const int log_operations_init_heap = 0;
 /* run-time memory allocation statistics */
 /*****************************************/
 
-static long long peak = 0, curr = 0, total = 0, num_allocs = 0;
+static size_t peak = 0, curr = 0, total = 0, num_allocs = 0;
 
 static malloc_count_callback_type callback = NULL;
 static void* callback_cookie = NULL;
@@ -117,6 +120,12 @@ extern size_t malloc_count_peak(void)
     return peak;
 }
 
+/* user function to return the total allocation */
+extern size_t malloc_count_total(void)
+{
+    return total;
+}
+
 /* user function to reset the peak allocation to current */
 extern void malloc_count_reset_peak(void)
 {
@@ -132,7 +141,7 @@ extern size_t malloc_count_num_allocs(void)
 /* user function which prints current and peak allocation to stderr */
 extern void malloc_count_print_status(void)
 {
-    fprintf(stderr, PPREFIX "current %'lld, peak %'lld\n",
+    fprintf(stderr, PPREFIX "current %zu, peak %zu\n",
             curr, peak);
 }
 
@@ -161,8 +170,8 @@ extern void* malloc(size_t size)
 
         inc_count(size);
         if (log_operations && size >= log_operations_threshold) {
-            fprintf(stderr, PPREFIX "malloc(%'lld) = %p   (current %'lld)\n",
-                    (long long)size, (char*)ret + alignment, curr);
+            fprintf(stderr, PPREFIX "malloc(%zu) = %p   (current %zu)\n",
+                    size, (void *)((char*)ret + alignment), curr);
         }
 
         /* prepend allocation size and check sentinel */
@@ -186,8 +195,8 @@ extern void* malloc(size_t size)
         *(size_t*)((char*)ret + alignment - sizeof(size_t)) = sentinel;
 
         if (log_operations_init_heap) {
-            fprintf(stderr, PPREFIX "malloc(%'lld) = %p   on init heap\n",
-                    (long long)size, (char*)ret + alignment);
+            fprintf(stderr, PPREFIX "malloc(%zu) = %p   on init heap\n",
+                    size, (void*)((char*)ret + alignment));
         }
 
         return (char*)ret + alignment;
@@ -227,8 +236,8 @@ extern void free(void* ptr)
     dec_count(size);
 
     if (log_operations && size >= log_operations_threshold) {
-        fprintf(stderr, PPREFIX "free(%p) -> %'lld   (current %'lld)\n",
-                ptr, (long long)size, curr);
+        fprintf(stderr, PPREFIX "free(%p) -> %zu   (current %zu)\n",
+                ptr, size, curr);
     }
 
     (*real_free)(ptr);
@@ -311,12 +320,12 @@ extern void* realloc(void* ptr, size_t size)
     {
         if (newptr == ptr)
             fprintf(stderr, PPREFIX
-                    "realloc(%'lld -> %'lld) = %p   (current %'lld)\n",
-                   (long long)oldsize, (long long)size, newptr, curr);
+                    "realloc(%zu -> %zu) = %p   (current %zu)\n",
+                    oldsize, size, newptr, curr);
         else
             fprintf(stderr, PPREFIX
-                    "realloc(%'lld -> %'lld) = %p -> %p   (current %'lld)\n",
-                   (long long)oldsize, (long long)size, ptr, newptr, curr);
+                    "realloc(%zu -> %zu) = %p -> %p   (current %zu)\n",
+                    oldsize, size, ptr, newptr, curr);
     }
 
     *(size_t*)newptr = size;
@@ -334,19 +343,19 @@ static __attribute__((constructor)) void init(void)
 
     real_malloc = (malloc_type)dlsym(RTLD_NEXT, "malloc");
     if ((error = dlerror()) != NULL) {
-        fprintf(stderr,  PPREFIX "error %s\n", error);
+        fprintf(stderr, PPREFIX "error %s\n", error);
         exit(EXIT_FAILURE);
     }
 
     real_realloc = (realloc_type)dlsym(RTLD_NEXT, "realloc");
     if ((error = dlerror()) != NULL) {
-        fprintf(stderr,  PPREFIX "error %s\n", error);
+        fprintf(stderr, PPREFIX "error %s\n", error);
         exit(EXIT_FAILURE);
     }
 
     real_free = (free_type)dlsym(RTLD_NEXT, "free");
     if ((error = dlerror()) != NULL) {
-        fprintf(stderr,  PPREFIX "error %s\n", error);
+        fprintf(stderr, PPREFIX "error %s\n", error);
         exit(EXIT_FAILURE);
     }
 }
@@ -354,7 +363,7 @@ static __attribute__((constructor)) void init(void)
 static __attribute__((destructor)) void finish(void)
 {
     fprintf(stderr, PPREFIX
-            "exiting, total: %'lld, peak: %'lld, current: %'lld\n",
+            "exiting, total: %zu, peak: %zu, current: %zu\n",
             total, peak, curr);
 }
 
