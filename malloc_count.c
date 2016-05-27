@@ -120,6 +120,7 @@ extern size_t malloc_count_peak(void)
     return peak;
 }
 
+/* user function to return the total allocation */
 extern size_t malloc_count_total(void)
 {
     return total;
